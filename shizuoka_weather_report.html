@@ -311,7 +311,7 @@
         <div class="subtitle">データソース: 気象庁｜平年値: 1991-2020年｜半旬 = 5日ごとの区切り</div>
       </div>
       <div class="generated-at">
-        生成日時<br>2026年06月20日 16:09
+        生成日時<br>2026年06月20日 16:12
       </div>
     </div>
   </header>
@@ -1873,63 +1873,96 @@
       var body    = document.body;
       var lastY   = 0;
       var ticking = false;
+      var THRESHOLD = 8;
 
-      /* スクロール量を確実に取得（全ブラウザ対応） */
+      /* ── passive イベントのサポート確認（古いAndroid対応） ── */
+      var passiveOpt = false;
+      try {
+        var testOpts = Object.defineProperty({}, 'passive', {
+          get: function () { passiveOpt = { passive: true }; }
+        });
+        window.addEventListener('_', null, testOpts);
+        window.removeEventListener('_', null, testOpts);
+      } catch (e) {}
+
+      /* ── スクロール量を取得（全ブラウザ対応） ── */
       function getScrollY() {
-        return window.pageYOffset
-            || window.scrollY
-            || document.documentElement.scrollTop
-            || 0;
+        return window.pageYOffset !== undefined
+          ? window.pageYOffset
+          : (document.documentElement || document.body).scrollTop || 0;
       }
 
-      /* ヘッダーの表示・非表示を適用 */
+      /* ── ヘッダー表示・非表示 ── */
+      function showHeader() {
+        header.classList.remove('header-hidden');
+        body.classList.add('nav-visible');
+      }
+      function hideHeader() {
+        header.classList.add('header-hidden');
+        body.classList.remove('nav-visible');
+      }
+
+      /* ── スクロール方向を判定して適用 ── */
       function applyState() {
         var y = getScrollY();
         if (y <= 10) {
-          /* ページ最上部 → 必ず表示 */
-          header.classList.remove('header-hidden');
-          body.classList.add('nav-visible');
-        } else if (y > lastY + 4) {
-          /* 下スクロール → 隠す */
-          header.classList.add('header-hidden');
-          body.classList.remove('nav-visible');
-        } else if (y < lastY - 4) {
-          /* 上スクロール → 表示 */
-          header.classList.remove('header-hidden');
-          body.classList.add('nav-visible');
+          showHeader();
+        } else if (y > lastY + THRESHOLD) {
+          hideHeader();
+        } else if (y < lastY - THRESHOLD) {
+          showHeader();
         }
         lastY   = y;
         ticking = false;
       }
 
-      /* requestAnimationFrame でまとめて処理（60fps 制限） */
+      /* ── rAF でバッチ処理（60fps制限、無駄な計算を防ぐ） ── */
       function onScroll() {
         if (!ticking) {
-          requestAnimationFrame(applyState);
           ticking = true;
+          if (window.requestAnimationFrame) {
+            window.requestAnimationFrame(applyState);
+          } else {
+            applyState();
+          }
         }
       }
 
-      /* PC: scroll / スマートフォン: touchmove の両方を監視 */
-      window.addEventListener('scroll',    onScroll, { passive: true });
-      window.addEventListener('touchmove', onScroll, { passive: true });
-      /* iOS Safari: タッチ終了後に慣性スクロールが続くため遅延チェック */
+      /* ── イベント登録（PC + iOS + Android Chrome すべて対応） ── */
+      /* document に対して登録すると Android Chrome で確実に捕捉できる */
+      document.addEventListener('scroll',    onScroll, passiveOpt);
+      window.addEventListener('scroll',      onScroll, passiveOpt);
+      window.addEventListener('touchmove',   onScroll, passiveOpt);
       window.addEventListener('touchend', function () {
+        /* 慣性スクロール終了後を複数回チェック */
         setTimeout(onScroll, 100);
         setTimeout(onScroll, 300);
-      }, { passive: true });
+        setTimeout(onScroll, 600);
+      }, passiveOpt);
 
-      /* ヘッダー高さを CSS 変数にセット */
+      /* ── ヘッダー高さを CSS変数・インラインスタイル両方にセット ── */
       function updateSize() {
         var h = header.offsetHeight;
         document.documentElement.style.setProperty('--header-h', h + 'px');
         body.style.paddingTop = h + 'px';
+        lastY = getScrollY();   /* リサイズ後に lastY をリセット */
       }
 
-      window.addEventListener('load',   updateSize);
-      window.addEventListener('resize', updateSize);
-      updateSize();
-      body.classList.add('nav-visible');
+      window.addEventListener('resize', updateSize, passiveOpt);
+
+      /* 初期化：DOMContentLoaded / load / 遅延 の3重保険 */
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', updateSize);
+      } else {
+        updateSize();
+      }
+      window.addEventListener('load', function () {
+        updateSize();
+        showHeader();
+      });
+      setTimeout(updateSize, 100);
+
+      showHeader();
     })();
   </script>
 
