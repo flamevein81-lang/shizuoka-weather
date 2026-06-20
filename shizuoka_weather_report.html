@@ -52,10 +52,13 @@
       right: 0;
       z-index: 100;
       backdrop-filter: blur(12px);
-      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-                  opacity  0.35s ease;
+      -webkit-backdrop-filter: blur(12px);
+      will-change: transform;
+      -webkit-transition: -webkit-transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
     }
     .site-header.header-hidden {
+      -webkit-transform: translateY(-100%);
       transform: translateY(-100%);
       opacity: 0;
       pointer-events: none;
@@ -308,7 +311,7 @@
         <div class="subtitle">データソース: 気象庁｜平年値: 1991-2020年｜半旬 = 5日ごとの区切り</div>
       </div>
       <div class="generated-at">
-        生成日時<br>2026年06月20日 15:55
+        生成日時<br>2026年06月20日 16:09
       </div>
     </div>
   </header>
@@ -1866,41 +1869,66 @@
 
   <script>
     (function () {
-      var header = document.querySelector('.site-header');
-      var nav    = document.querySelector('.month-nav');
-      var body   = document.body;
-      var lastY  = 0;
-      var headerH = 0;
+      var header  = document.querySelector('.site-header');
+      var body    = document.body;
+      var lastY   = 0;
+      var ticking = false;
 
-      function update() {
-        headerH = header.offsetHeight;
-        document.documentElement.style.setProperty('--header-h', headerH + 'px');
+      /* スクロール量を確実に取得（全ブラウザ対応） */
+      function getScrollY() {
+        return window.pageYOffset
+            || window.scrollY
+            || document.documentElement.scrollTop
+            || 0;
       }
 
-      // ページ上部ではヘッダーを必ず表示
-      window.addEventListener('scroll', function () {
-        var y = window.scrollY || window.pageYOffset;
-
+      /* ヘッダーの表示・非表示を適用 */
+      function applyState() {
+        var y = getScrollY();
         if (y <= 10) {
-          // 最上部 → 必ず表示
+          /* ページ最上部 → 必ず表示 */
           header.classList.remove('header-hidden');
           body.classList.add('nav-visible');
-        } else if (y > lastY) {
-          // 下スクロール → ヘッダーを隠す
+        } else if (y > lastY + 4) {
+          /* 下スクロール → 隠す */
           header.classList.add('header-hidden');
           body.classList.remove('nav-visible');
-        } else {
-          // 上スクロール → ヘッダーを表示
+        } else if (y < lastY - 4) {
+          /* 上スクロール → 表示 */
           header.classList.remove('header-hidden');
           body.classList.add('nav-visible');
         }
-        lastY = y;
+        lastY   = y;
+        ticking = false;
+      }
+
+      /* requestAnimationFrame でまとめて処理（60fps 制限） */
+      function onScroll() {
+        if (!ticking) {
+          requestAnimationFrame(applyState);
+          ticking = true;
+        }
+      }
+
+      /* PC: scroll / スマートフォン: touchmove の両方を監視 */
+      window.addEventListener('scroll',    onScroll, { passive: true });
+      window.addEventListener('touchmove', onScroll, { passive: true });
+      /* iOS Safari: タッチ終了後に慣性スクロールが続くため遅延チェック */
+      window.addEventListener('touchend', function () {
+        setTimeout(onScroll, 100);
+        setTimeout(onScroll, 300);
       }, { passive: true });
 
-      // 初期化
-      window.addEventListener('load', update);
-      window.addEventListener('resize', update);
-      update();
+      /* ヘッダー高さを CSS 変数にセット */
+      function updateSize() {
+        var h = header.offsetHeight;
+        document.documentElement.style.setProperty('--header-h', h + 'px');
+        body.style.paddingTop = h + 'px';
+      }
+
+      window.addEventListener('load',   updateSize);
+      window.addEventListener('resize', updateSize);
+      updateSize();
       body.classList.add('nav-visible');
     })();
   </script>
