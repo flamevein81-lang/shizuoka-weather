@@ -339,6 +339,7 @@ def render_html(df: pd.DataFrame, generated_at: str) -> str:
       font-family: 'Noto Sans JP', 'Inter', sans-serif;
       min-height: 100vh;
       line-height: 1.6;
+      padding-top: var(--header-h, 100px);
     }}
 
     /* ─── ヘッダー ── */
@@ -346,10 +347,19 @@ def render_html(df: pd.DataFrame, generated_at: str) -> str:
       background: linear-gradient(135deg, #1a1d27 0%, #1e2340 50%, #16213e 100%);
       border-bottom: 1px solid var(--border);
       padding: 32px 24px 24px;
-      position: sticky;
+      position: fixed;
       top: 0;
+      left: 0;
+      right: 0;
       z-index: 100;
       backdrop-filter: blur(12px);
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity  0.35s ease;
+    }}
+    .site-header.header-hidden {{
+      transform: translateY(-100%);
+      opacity: 0;
+      pointer-events: none;
     }}
     .header-inner {{
       max-width: 1200px;
@@ -389,8 +399,12 @@ def render_html(df: pd.DataFrame, generated_at: str) -> str:
       gap: 6px;
       overflow-x: auto;
       position: sticky;
-      top: 94px;
+      top: 0;
       z-index: 99;
+      transition: top 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }}
+    .nav-visible .month-nav {{
+      top: var(--header-h, 94px);
     }}
     .nav-item {{
       color: var(--text-sub);
@@ -612,6 +626,47 @@ def render_html(df: pd.DataFrame, generated_at: str) -> str:
       {charts_html}
     </div>
   </main>
+
+  <script>
+    (function () {{
+      var header = document.querySelector('.site-header');
+      var nav    = document.querySelector('.month-nav');
+      var body   = document.body;
+      var lastY  = 0;
+      var headerH = 0;
+
+      function update() {{
+        headerH = header.offsetHeight;
+        document.documentElement.style.setProperty('--header-h', headerH + 'px');
+      }}
+
+      // ページ上部ではヘッダーを必ず表示
+      window.addEventListener('scroll', function () {{
+        var y = window.scrollY || window.pageYOffset;
+
+        if (y <= 10) {{
+          // 最上部 → 必ず表示
+          header.classList.remove('header-hidden');
+          body.classList.add('nav-visible');
+        }} else if (y > lastY) {{
+          // 下スクロール → ヘッダーを隠す
+          header.classList.add('header-hidden');
+          body.classList.remove('nav-visible');
+        }} else {{
+          // 上スクロール → ヘッダーを表示
+          header.classList.remove('header-hidden');
+          body.classList.add('nav-visible');
+        }}
+        lastY = y;
+      }}, {{ passive: true }});
+
+      // 初期化
+      window.addEventListener('load', update);
+      window.addEventListener('resize', update);
+      update();
+      body.classList.add('nav-visible');
+    }})();
+  </script>
 
   <footer class="site-footer">
     {STATION_NAME} 気象データ 半旬別平年比較レポート｜{YEAR}年｜データ: 気象庁 地点番号 47656
