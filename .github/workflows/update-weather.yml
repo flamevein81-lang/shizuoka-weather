@@ -1,0 +1,93 @@
+name: 静岡気象データ自動更新
+
+on:
+  # 毎月 1・6・11・16・21・26日 09:00 JST（= UTC 00:00）に実行
+  schedule:
+    - cron: '0 0 1,6,11,16,21,26 * *'
+  # 手動実行（テスト用）
+  workflow_dispatch:
+
+permissions:
+  contents: write  # コミット & プッシュのために必要
+
+jobs:
+  update-weather:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ─── リポジトリをチェックアウト ───────────────────────────
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ─── Python セットアップ ─────────────────────────────────
+      - name: Python 3.11 セットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # ─── 日本語フォントのインストール（グラフ用）──────────────
+      - name: 日本語フォントのインストール
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q fonts-noto-cjk
+          fc-cache -fv
+
+      # ─── 依存パッケージのインストール ───────────────────────
+      - name: 依存パッケージのインストール
+        run: pip install -r requirements.txt
+
+      # ─── 気象データ取得・更新 ────────────────────────────────
+      - name: 気象データ取得（shizuoka_weather.py）
+        env:
+          MPLBACKEND: Agg  # GUI なし環境でのmatplotlib設定
+        run: |
+          python shizuoka_weather.py
+        continue-on-error: false
+
+      # ─── HTML レポート生成 ───────────────────────────────────
+      - name: HTML レポート生成（generate_report.py）
+        env:
+          MPLBACKEND: Agg
+        run: |
+          python generate_report.py
+        continue-on-error: true  # レポート生成失敗でも続行
+
+      # ─── 変更をコミット & プッシュ ───────────────────────────
+      - name: Git コミット & プッシュ
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 変更があればコミット
+          git add shizuoka_weather.csv \
+                  shizuoka_weather_plot.png \
+                  shizuoka_normal_plot.png \
+                  shizuoka_weather_report.html \
+                  weather_update.log || true
+
+          if git diff --cached --quiet; then
+            echo "変更なし - コミットをスキップします"
+          else
+            TODAY=$(date -d '+9 hours' '+%Y-%m-%d')
+            git commit -m "🌤 自動更新: ${TODAY}"
+            git push
+            echo "✅ コミット & プッシュ完了"
+          fi
+
+      # ─── 実行サマリー ────────────────────────────────────────
+      - name: 実行サマリーを出力
+        if: always()
+        run: |
+          echo "### 🌤 静岡気象データ更新サマリー" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 項目 | 値 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| 実行日時 (JST) | $(date -d '+9 hours' '+%Y-%m-%d %H:%M') |" >> $GITHUB_STEP_SUMMARY
+          echo "| CSVファイル | $(wc -l < shizuoka_weather.csv) 行 |" >> $GITHUB_STEP_SUMMARY
+          if [ -f shizuoka_weather_report.html ]; then
+            echo "| HTML レポート | $(du -h shizuoka_weather_report.html | cut -f1) |" >> $GITHUB_STEP_SUMMARY
+          fi

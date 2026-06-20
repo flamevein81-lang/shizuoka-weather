@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+
+# ログファイル
+weather_update.log
+weather_updater_bat.log
+shizuoka_weather_task.log
+
+# 調査用テキスト（大容量）
+jma_table_inspect.txt
+jma_table_inspect_final.txt
+jma_table_inspect_fixed.txt
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# エディタ
+.vscode/
+.idea/
+*.swp
+*.swo
