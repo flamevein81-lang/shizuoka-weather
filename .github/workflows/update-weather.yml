@@ -1,14 +1,14 @@
-name: 静岡気象データ自動更新
+name: Shizuoka Weather Update
 
 on:
-  # 毎月 1・6・11・16・21・26日 09:00 JST（= UTC 00:00）に実行
+  # Run on 1st, 6th, 11th, 16th, 21st, 26th of every month at 09:00 JST (00:00 UTC)
   schedule:
     - cron: '0 0 1,6,11,16,21,26 * *'
-  # 手動実行（テスト用）
+  # Allow manual trigger for testing
   workflow_dispatch:
 
 permissions:
-  contents: write  # コミット & プッシュのために必要
+  contents: write
 
 jobs:
   update-weather:
@@ -16,53 +16,42 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      # ─── リポジトリをチェックアウト ───────────────────────────
-      - name: リポジトリをチェックアウト
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # ─── Python セットアップ ─────────────────────────────────
-      - name: Python 3.11 セットアップ
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
-      # ─── 日本語フォントのインストール（グラフ用）──────────────
-      - name: 日本語フォントのインストール
+      - name: Install Japanese fonts (for matplotlib)
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q fonts-noto-cjk
           fc-cache -fv
 
-      # ─── 依存パッケージのインストール ───────────────────────
-      - name: 依存パッケージのインストール
+      - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      # ─── 気象データ取得・更新 ────────────────────────────────
-      - name: 気象データ取得（shizuoka_weather.py）
-        env:
-          MPLBACKEND: Agg  # GUI なし環境でのmatplotlib設定
-        run: |
-          python shizuoka_weather.py
-        continue-on-error: false
-
-      # ─── HTML レポート生成 ───────────────────────────────────
-      - name: HTML レポート生成（generate_report.py）
+      - name: Fetch weather data
         env:
           MPLBACKEND: Agg
-        run: |
-          python generate_report.py
-        continue-on-error: true  # レポート生成失敗でも続行
+        run: python shizuoka_weather.py
 
-      # ─── 変更をコミット & プッシュ ───────────────────────────
-      - name: Git コミット & プッシュ
+      - name: Generate HTML report
+        env:
+          MPLBACKEND: Agg
+        run: python generate_report.py
+        continue-on-error: true
+
+      - name: Commit and push updates
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # 変更があればコミット
           git add shizuoka_weather.csv \
                   shizuoka_weather_plot.png \
                   shizuoka_normal_plot.png \
@@ -70,24 +59,19 @@ jobs:
                   weather_update.log || true
 
           if git diff --cached --quiet; then
-            echo "変更なし - コミットをスキップします"
+            echo "No changes to commit"
           else
             TODAY=$(date -d '+9 hours' '+%Y-%m-%d')
-            git commit -m "🌤 自動更新: ${TODAY}"
+            git commit -m "weather: auto update ${TODAY}"
             git push
-            echo "✅ コミット & プッシュ完了"
+            echo "Push complete"
           fi
 
-      # ─── 実行サマリー ────────────────────────────────────────
-      - name: 実行サマリーを出力
+      - name: Summary
         if: always()
         run: |
-          echo "### 🌤 静岡気象データ更新サマリー" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| 項目 | 値 |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
-          echo "| 実行日時 (JST) | $(date -d '+9 hours' '+%Y-%m-%d %H:%M') |" >> $GITHUB_STEP_SUMMARY
-          echo "| CSVファイル | $(wc -l < shizuoka_weather.csv) 行 |" >> $GITHUB_STEP_SUMMARY
-          if [ -f shizuoka_weather_report.html ]; then
-            echo "| HTML レポート | $(du -h shizuoka_weather_report.html | cut -f1) |" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "### Shizuoka Weather Update" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Run time (JST) | $(date -d '+9 hours' '+%Y-%m-%d %H:%M') |" >> $GITHUB_STEP_SUMMARY
+          echo "| CSV rows | $(wc -l < shizuoka_weather.csv) |" >> $GITHUB_STEP_SUMMARY
