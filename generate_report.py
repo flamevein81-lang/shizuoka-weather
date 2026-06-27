@@ -215,7 +215,7 @@ def render_html(df: pd.DataFrame, generated_at: str) -> str:
                 <div class="period-name">{p_label}</div>
                 <div class="period-badges">{badge_html}</div>
               </td>
-              <td class="data-group">
+              <td class="data-group data-group-temp">
                 <div class="data-row">
                   <span class="data-label">実測</span>
                   <span class="data-val">{fmt(row["実測平均気温"],"℃")}</span>
@@ -235,7 +235,7 @@ def render_html(df: pd.DataFrame, generated_at: str) -> str:
                   <span {diff_cls(t_min_diff)}>{fmt(t_min_diff,"℃")}</span>
                 </div>
               </td>
-              <td class="data-group">
+              <td class="data-group data-group-precip">
                 <div class="data-row">
                   <span class="data-label">実測</span>
                   <span class="data-val">{fmt(p_actual,"mm")}</span>
@@ -600,6 +600,114 @@ def render_html(df: pd.DataFrame, generated_at: str) -> str:
     ::-webkit-scrollbar-track {{ background: var(--bg); }}
     ::-webkit-scrollbar-thumb {{ background: var(--border); border-radius: 3px; }}
     ::-webkit-scrollbar-thumb:hover {{ background: var(--accent); }}
+
+    /* ═══════════════════════════════════════════════════════
+       スマートフォン対応 レスポンシブCSS
+    ═══════════════════════════════════════════════════════ */
+    @media (max-width: 700px) {{
+      /* ヘッダーをコンパクトに */
+      .site-header {{
+        padding: 12px 14px 10px;
+      }}
+      .header-inner {{
+        gap: 10px;
+        flex-wrap: nowrap;
+        align-items: flex-start;
+      }}
+      .header-icon {{ font-size: 1.6rem; }}
+      .header-text h1 {{
+        font-size: 0.95rem;
+        line-height: 1.3;
+      }}
+      .header-text .subtitle {{
+        font-size: 0.7rem;
+      }}
+      /* 生成日時は省略（画面が狭いため） */
+      .generated-at {{ display: none; }}
+
+      /* ナビゲーション */
+      .month-nav {{ padding: 8px 10px; gap: 4px; }}
+      .nav-item {{ padding: 4px 10px; font-size: 0.78rem; }}
+
+      /* メインコンテンツ */
+      .main {{ padding: 16px 10px; }}
+      .month-section {{
+        margin-bottom: 28px;
+        scroll-margin-top: 90px;
+      }}
+      .month-header {{ padding: 12px 14px; }}
+      .month-title {{ font-size: 1.05rem; }}
+      .month-summary {{ font-size: 0.8rem; }}
+
+      /* ─── テーブル: ブロック形式に変換してカード表示 ─── */
+      .weather-table thead {{ display: none; }}
+      .weather-table,
+      .weather-table tbody {{ display: block; }}
+      .weather-table tr {{
+        display: block;
+        padding: 12px 0;
+        border-bottom: 2px solid var(--border);
+      }}
+      .weather-table tr:last-child {{ border-bottom: none; }}
+      .weather-table td {{
+        display: block;
+        border-right: none;
+        padding: 6px 14px;
+        min-width: unset !important;
+      }}
+
+      /* 各セルにラベルを付加 */
+      .data-group-temp::before {{
+        content: "🌡️ 気温（平均 / 最高 / 最低）";
+        display: block;
+        font-size: 0.72rem;
+        color: var(--text-sub);
+        margin-bottom: 4px;
+        font-weight: 600;
+      }}
+      .data-group-precip::before {{
+        content: "🌧️ 降水量";
+        display: block;
+        font-size: 0.72rem;
+        color: var(--text-sub);
+        margin-bottom: 4px;
+        font-weight: 600;
+      }}
+      .comment-cell::before {{
+        content: "📝 コメント";
+        display: block;
+        font-size: 0.72rem;
+        color: var(--text-sub);
+        margin-bottom: 4px;
+        font-weight: 600;
+        padding-top: 6px;
+        border-top: 1px dashed var(--border);
+      }}
+
+      /* データ行・コメントのフォントサイズ調整 */
+      .data-row {{ font-size: 0.8rem; }}
+      .comment-item {{ font-size: 0.8rem; }}
+      .data-val {{ min-width: 40px; }}
+
+      /* グラフ */
+      .chart-section {{ margin-bottom: 28px; }}
+      .section-title {{ font-size: 0.95rem; }}
+
+      /* フッター */
+      .site-footer {{
+        font-size: 0.72rem;
+        padding: 16px;
+        line-height: 1.8;
+      }}
+    }}
+
+    /* さらに小さい画面（iPhone SE等 max-width: 390px）*/
+    @media (max-width: 390px) {{
+      .header-text h1 {{ font-size: 0.85rem; }}
+      .header-icon {{ font-size: 1.4rem; }}
+      .nav-item {{ padding: 4px 8px; font-size: 0.72rem; }}
+      .main {{ padding: 12px 8px; }}
+    }}
   </style>
 </head>
 <body>
