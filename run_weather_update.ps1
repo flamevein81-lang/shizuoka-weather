@@ -85,12 +85,25 @@ if (-not $gitCmd) {
     $diffOutput = git -C $WorkDir diff --cached --name-only 2>&1
     if ($diffOutput) {
         $today = (Get-Date).ToString("yyyy-MM-dd")
-        $commitMsg = "🌤 自動更新: $today"
+        $commitMsg = "自動更新: $today"
         git -C $WorkDir commit -m $commitMsg 2>&1 | ForEach-Object { Write-Log "git commit: $_" }
-        git -C $WorkDir push 2>&1 | ForEach-Object { Write-Log "git push: $_" }
-        Write-Log "✅ Git Push 完了: $commitMsg"
+
+        # Push前にリモートの変更を取り込む（GitHub Actions との競合を防止）
+        Write-Log "git pull --rebase 実行中（リモートとの競合防止）"
+        git -C $WorkDir pull --rebase origin master 2>&1 | ForEach-Object { Write-Log "git pull: $_" }
+
+        # Push 実行
+        $pushResult = git -C $WorkDir push origin master 2>&1
+        $pushResult | ForEach-Object { Write-Log "git push: $_" }
+        if ($LASTEXITCODE -eq 0) {
+            Write-Log "✅ Git Push 完了: $commitMsg"
+        } else {
+            Write-Log "⚠️ Git Push 失敗 (終了コード: $LASTEXITCODE) - 次回更新時に再試行されます"
+        }
     } else {
         Write-Log "変更なし - Git コミットをスキップします"
+        # 変更がなくてもリモートと同期を確認
+        git -C $WorkDir pull --rebase origin master 2>&1 | ForEach-Object { Write-Log "git sync: $_" }
     }
 }
 
