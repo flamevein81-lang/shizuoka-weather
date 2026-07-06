@@ -1,9 +1,10 @@
 name: Shizuoka Weather Update
 
 on:
-  # Run on 1st, 6th, 11th, 16th, 21st, 26th of every month at 09:00 JST (00:00 UTC)
+  # Run on 1st, 6th, 11th, 16th, 21st, 26th of every month at 10:15 JST (01:15 UTC)
+  # ※ UTC 00:00 is peak time and often delayed; offset to 01:15 UTC for reliability
   schedule:
-    - cron: '0 0 1,6,11,16,21,26 * *'
+    - cron: '15 1 1,6,11,16,21,26 * *'
   # Allow manual trigger for testing
   workflow_dispatch:
 
