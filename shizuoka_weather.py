@@ -153,7 +153,10 @@ def get_2026_data(year=2026):
             # 第N半旬はN×5日目まで → (今日-1)//5 = 完了済み半旬数
             # 例）今日=9日 → (9-1)//5=1 → 第1半旬（1〜5日）まで取得
             #     今日=11日 → (11-1)//5=2 → 第2半旬（6〜10日）まで取得
-            now = datetime.now()
+            # ※ GitHub Actions は UTC で動作するため JST(+9h) に変換して判定する
+            from datetime import timezone, timedelta
+            JST = timezone(timedelta(hours=9))
+            now = datetime.now(JST)
             last_complete_period = (now.day - 1) // 5  # 0=なし, 1〜6
 
             if current_month > now.month:
